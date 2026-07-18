@@ -1,100 +1,90 @@
 import * as cdk from 'aws-cdk-lib';
-import * as pipelines from 'aws-cdk-lib/pipelines';
 import { Construct } from 'constructs';
-import { AwsCdkWorkflowProjectStack } from './app-stack';
+import * as codepipeline from 'aws-cdk-lib/aws-codepipeline';
+import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Get values from environment variables - NO HARDCODED FALLBACKS
-    const githubRepo = process.env.GITHUB_REPO;
-    const connectionArn = process.env.GITHUB_CONNECTION_ARN;
-    
-    // Validation
-    if (!githubRepo) {
-      throw new Error('GITHUB_REPO environment variable must be set. Run: npm run setup-env');
-    }
-    
-    if (!connectionArn) {
-      throw new Error('GITHUB_CONNECTION_ARN environment variable must be set. Run: npm run setup-env');
-    }
+    // Hardcode values for CodeBuild environment
+    const githubRepo = 'Stacy-JoyM/aws-cdk-workflow-capstone4';
+    const githubConnectionArn = 'arn:aws:codeconnections:us-east-1:654129064706:connection/ea5920fc-a126-4814-ae30-0563bd906aba';
 
     console.log(`✅ Using GitHub repo: ${githubRepo}`);
-    console.log(`✅ Using connection ARN: ${connectionArn}`);
+    console.log(`✅ Using connection ARN: ${githubConnectionArn}`);
 
-    const pipeline = new pipelines.CodePipeline(this, 'Pipeline', {
-      pipelineName: 'WorkflowPipeline',
-      synth: new pipelines.ShellStep('Synth', {
-        input: pipelines.CodePipelineSource.connection(githubRepo, 'main', {
-          connectionArn: connectionArn
-        }),
-        commands: [
-          // Disable CDK notices and version reporting to prevent cache issues
-          'export CDK_DISABLE_VERSION_CHECK=1',
-          'export CDK_CLI_ASM_DISABLE_CACHE=1',
-          
-          // Debug environment and versions
-          'echo "=== Environment Debug ==="',
-          'node --version',
-          'npm --version',
-          'echo "AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION"',
-          'echo "CDK_DEFAULT_ACCOUNT: $CDK_DEFAULT_ACCOUNT"',
-          'echo "CDK_DEFAULT_REGION: $CDK_DEFAULT_REGION"',
-          'pwd',
-          'ls -la',
-          
-          // Check package files
-          'echo "=== Package Files Check ==="',
-          'ls -la package*.json || echo "Package files missing"',
-          'cat package.json || echo "Cannot read package.json"',
-          
-          // Set environment variables explicitly
-          'export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)',
-          'export CDK_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}',
-          'echo "Set CDK_DEFAULT_ACCOUNT: $CDK_DEFAULT_ACCOUNT"',
-          'echo "Set CDK_DEFAULT_REGION: $CDK_DEFAULT_REGION"',
-          
-          // Create CDK cache directory to prevent errors
-          'mkdir -p /root/.cdk/cache',
-          
-          // Install dependencies with detailed output
-          'echo "=== Installing Dependencies ==="',
-          'npm ci --verbose || (echo "npm ci failed, trying npm install" && npm install --verbose)',
-          
-          // Build with error handling
-          'echo "=== Building Project ==="',
-          'npm run build || (echo "Build failed, checking TypeScript files" && ls -la lib/ && ls -la bin/)',
-          
-          // Debug before synth
-          'echo "=== Files Check After Build ==="',
-          'ls -la lib/ || echo "No lib directory"',
-          'ls -la bin/ || echo "No bin directory"',
-          'ls -la lambda/ || echo "No lambda directory"',
-          
-          // CDK synth with cache fix and no version check
-          'echo "=== CDK Synth ==="',
-          'npx cdk synth --no-version-reporting --no-asset-metadata --quiet'
-        ]
-      })
+    // Create artifacts
+    const sourceOutput = new codepipeline.Artifact();
+    const buildOutput = new codepipeline.Artifact();
+
+    // Create CodeBuild project
+    const buildProject = new codebuild.PipelineProject(this, 'BuildProject', {
+      buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec.yml'),
+      environment: {
+        buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
+      },
     });
 
-    // Add application stage
-    pipeline.addStage(new WorkflowStage(this, 'Deploy', {
-      env: {
-        account: this.account,
-        region: this.region,
-      }
+    // Add permissions for CDK deployment
+    buildProject.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'sts:AssumeRole',
+        'cloudformation:*',
+        'iam:*',
+        's3:*',
+        'ssm:*',
+        'ec2:*',
+        'lambda:*',
+        'apigateway:*',
+        'logs:*',
+      ],
+      resources: ['*'],
     }));
-  }
-}
 
-class WorkflowStage extends cdk.Stage {
-  constructor(scope: Construct, id: string, props?: cdk.StageProps) {
-    super(scope, id, props);
-
-    new AwsCdkWorkflowProjectStack(this, 'WorkflowStack', {
-      env: props?.env
+    // Create pipeline
+    const pipeline = new codepipeline.Pipeline(this, 'Pipeline', {
+      pipelineName: 'AwsCdkWorkflowPipeline',
+      stages: [
+        {
+          stageName: 'Source',
+          actions: [
+            new codepipeline_actions.CodeStarConnectionsSourceAction({
+              actionName: `${githubRepo.replace('/', '_')}_Source`,
+              owner: githubRepo.split('/')[0],
+              repo: githubRepo.split('/')[1],
+              branch: 'main',
+              output: sourceOutput,
+              connectionArn: githubConnectionArn,
+            }),
+          ],
+        },
+        {
+          stageName: 'Build',
+          actions: [
+            new codepipeline_actions.CodeBuildAction({
+              actionName: 'Build',
+              project: buildProject,
+              input: sourceOutput,
+              outputs: [buildOutput],
+            }),
+          ],
+        },
+        {
+          stageName: 'Deploy',
+          actions: [
+            new codepipeline_actions.CloudFormationCreateUpdateStackAction({
+              actionName: 'Deploy',
+              templatePath: buildOutput.atPath('AwsCdkWorkflowProjectStack.template.json'),
+              stackName: 'AwsCdkWorkflowProjectStack',
+              adminPermissions: true,
+            }),
+          ],
+        },
+      ],
     });
   }
 }
