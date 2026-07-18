@@ -5,8 +5,11 @@ phases:
     runtime-versions:
       nodejs: 18
     commands:
+      - echo "Node version:"
+      - node --version
+      - npm --version
       - echo "Installing project dependencies..."
-      - npm ci
+      - npm install
       - echo "Installing Lambda dependencies..."
       - cd lambda && npm install && cd ..
 
