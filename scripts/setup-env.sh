@@ -8,7 +8,7 @@ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --outpu
 export CDK_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
 
 # GitHub Configuration - REPLACE THESE WITH YOUR ACTUAL VALUES
-export GITHUB_REPO="StacyJoyM/aws-cdk-workflow-capstone4"
+export GITHUB_REPO="Stacy-JoyM/aws-cdk-workflow-capstone4"
 export GITHUB_CONNECTION_ARN="arn:aws:codeconnections:us-east-1:654129064706:connection/ea5920fc-a126-4814-ae30-0563bd906aba"
 
 # Validation
