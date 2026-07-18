@@ -9,26 +9,54 @@ export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Hardcode values for CodeBuild environment
     const githubRepo = 'Stacy-JoyM/aws-cdk-workflow-capstone4';
     const githubConnectionArn = 'arn:aws:codeconnections:us-east-1:654129064706:connection/ea5920fc-a126-4814-ae30-0563bd906aba';
 
-    console.log(`✅ Using GitHub repo: ${githubRepo}`);
-    console.log(`✅ Using connection ARN: ${githubConnectionArn}`);
-
     // Create artifacts
     const sourceOutput = new codepipeline.Artifact();
-    const buildOutput = new codepipeline.Artifact();
 
-    // Create CodeBuild project
+    // Create CodeBuild project for build AND deploy
     const buildProject = new codebuild.PipelineProject(this, 'BuildProject', {
-      buildSpec: codebuild.BuildSpec.fromSourceFilename('buildspec.yml'),
+      buildSpec: codebuild.BuildSpec.fromObject({
+        version: '0.2',
+        phases: {
+          install: {
+            'runtime-versions': {
+              nodejs: 18
+            },
+            commands: [
+              'echo "Node version:"',
+              'node --version',
+              'npm --version',
+              'echo "Installing project dependencies..."',
+              'npm install',
+              'echo "Installing Lambda dependencies..."',
+              'cd lambda && npm install && cd ..'
+            ]
+          },
+          pre_build: {
+            commands: [
+              'echo "Setting up environment variables..."',
+              'export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)',
+              'export CDK_DEFAULT_REGION=us-east-1'
+            ]
+          },
+          build: {
+            commands: [
+              'echo "Building the project..."',
+              'npm run build',
+              'echo "Deploying with CDK..."',
+              'npx cdk deploy AwsCdkWorkflowProjectStack --require-approval never'
+            ]
+          }
+        }
+      }),
       environment: {
         buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
       },
     });
 
-    // Add permissions for CDK deployment
+    // Add comprehensive permissions for CDK deployment
     buildProject.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
@@ -41,11 +69,12 @@ export class PipelineStack extends cdk.Stack {
         'lambda:*',
         'apigateway:*',
         'logs:*',
+        'states:*'
       ],
       resources: ['*'],
     }));
 
-    // Create pipeline
+    // Create simplified pipeline with just Source and Build/Deploy
     const pipeline = new codepipeline.Pipeline(this, 'Pipeline', {
       pipelineName: 'AwsCdkWorkflowPipeline',
       stages: [
@@ -63,24 +92,12 @@ export class PipelineStack extends cdk.Stack {
           ],
         },
         {
-          stageName: 'Build',
+          stageName: 'BuildAndDeploy',
           actions: [
             new codepipeline_actions.CodeBuildAction({
-              actionName: 'Build',
+              actionName: 'BuildAndDeploy',
               project: buildProject,
               input: sourceOutput,
-              outputs: [buildOutput],
-            }),
-          ],
-        },
-        {
-          stageName: 'Deploy',
-          actions: [
-            new codepipeline_actions.CloudFormationCreateUpdateStackAction({
-              actionName: 'Deploy',
-              templatePath: buildOutput.atPath('AwsCdkWorkflowProjectStack.template.json'),
-              stackName: 'AwsCdkWorkflowProjectStack',
-              adminPermissions: true,
             }),
           ],
         },
