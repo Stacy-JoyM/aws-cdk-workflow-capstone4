@@ -20,8 +20,8 @@ export class PipelineStack extends cdk.Stack {
       throw new Error('GITHUB_CONNECTION_ARN environment variable must be set. Run: npm run setup-env');
     }
 
-    console.log(` Using GitHub repo: ${githubRepo}`);
-    console.log(` Using connection ARN: ${connectionArn}`);
+    console.log(`✅ Using GitHub repo: ${githubRepo}`);
+    console.log(`✅ Using connection ARN: ${connectionArn}`);
 
     const pipeline = new pipelines.CodePipeline(this, 'Pipeline', {
       pipelineName: 'WorkflowPipeline',
@@ -30,6 +30,10 @@ export class PipelineStack extends cdk.Stack {
           connectionArn: connectionArn
         }),
         commands: [
+          // Disable CDK notices and version reporting to prevent cache issues
+          'export CDK_DISABLE_VERSION_CHECK=1',
+          'export CDK_CLI_ASM_DISABLE_CACHE=1',
+          
           // Debug environment and versions
           'echo "=== Environment Debug ==="',
           'node --version',
@@ -51,6 +55,9 @@ export class PipelineStack extends cdk.Stack {
           'echo "Set CDK_DEFAULT_ACCOUNT: $CDK_DEFAULT_ACCOUNT"',
           'echo "Set CDK_DEFAULT_REGION: $CDK_DEFAULT_REGION"',
           
+          // Create CDK cache directory to prevent errors
+          'mkdir -p /root/.cdk/cache',
+          
           // Install dependencies with detailed output
           'echo "=== Installing Dependencies ==="',
           'npm ci --verbose || (echo "npm ci failed, trying npm install" && npm install --verbose)',
@@ -65,9 +72,9 @@ export class PipelineStack extends cdk.Stack {
           'ls -la bin/ || echo "No bin directory"',
           'ls -la lambda/ || echo "No lambda directory"',
           
-          // CDK synth with verbose output
+          // CDK synth with cache fix and no version check
           'echo "=== CDK Synth ==="',
-          'npx cdk synth --verbose'
+          'npx cdk synth --no-version-reporting --no-asset-metadata --quiet'
         ]
       })
     });
@@ -91,4 +98,3 @@ class WorkflowStage extends cdk.Stage {
     });
   }
 }
-
