@@ -1,74 +1,76 @@
 import * as cdk from 'aws-cdk-lib';
+import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
 import * as stepfunctionsTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
-import { Construct } from 'constructs';
 
 export class AwsCdkWorkflowProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 1. Create SSM Parameter
-    const configParam = new ssm.StringParameter(this, 'AppGreeting', {
-      parameterName: '/app/config/greeting',
-      stringValue: 'Hello from CI/CD Automated Infrastructure!',
-      description: 'Greeting message for the workflow application'
+    // Create SSM Parameter
+    const greetingParameter = new ssm.StringParameter(this, 'GreetingParameter', {
+      parameterName: '/workflow/greeting',
+      stringValue: 'Hello from AWS CDK Workflow!',
+      description: 'Greeting message for the workflow'
     });
 
-    // 2. Create Lambda Function
-    const workflowLambda = new lambda.Function(this, 'WorkflowTask', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
+    // Create Lambda function with Node.js 20.x
+    const workflowTask = new lambda.Function(this, 'WorkflowTask', {
+      runtime: lambda.Runtime.NODEJS_20_X,  // Updated to Node.js 20.x
+      handler: 'index.handler',              // Ensure correct handler
       code: lambda.Code.fromAsset('lambda'),
-      timeout: cdk.Duration.seconds(30),
       environment: {
-        SSM_PARAMETER_NAME: configParam.parameterName
-      }
+        SSM_PARAMETER_NAME: greetingParameter.parameterName
+      },
+      timeout: cdk.Duration.seconds(30)
     });
 
-    // Grant Lambda permissions to read SSM parameter
-    configParam.grantRead(workflowLambda);
+    // Grant Lambda permission to read the SSM parameter
+    greetingParameter.grantRead(workflowTask);
 
-    // 3. Create Step Functions tasks
-    const waitState = new stepfunctions.Wait(this, 'WaitState', {
-      time: stepfunctions.WaitTime.duration(cdk.Duration.seconds(2))
-    });
-
-    // ✅ FIXED: Use stepfunctionsTasks instead of tasks
+    // Create Lambda task for Step Functions
     const lambdaTask = new stepfunctionsTasks.LambdaInvoke(this, 'InvokeLambdaTask', {
-      lambdaFunction: workflowLambda,
-      outputPath: '$.Payload'
+      lambdaFunction: workflowTask,
+      outputPath: '$.Payload',
+      retryOnServiceExceptions: true
     });
 
-    // Add retry and error handling
-    lambdaTask.addRetry({
-      maxAttempts: 3,
-      interval: cdk.Duration.seconds(2),
-      backoffRate: 2.0
+    // Create failure state
+    const taskFailed = new stepfunctions.Fail(this, 'TaskFailed', {
+      cause: 'Lambda function failed after retries',
+      error: 'Fail state executed'
     });
 
-    lambdaTask.addCatch(new stepfunctions.Fail(this, 'TaskFailed', {
-      cause: 'Lambda function failed after retries'
-    }));
+    // Create success state
+    const taskSucceeded = new stepfunctions.Succeed(this, 'TaskSucceeded', {
+      comment: 'Workflow completed successfully'
+    });
 
-    // 4. Define the workflow
-    const definition = waitState.next(lambdaTask);
+    // Define the state machine with proper error handling
+    const definition = lambdaTask
+      .addRetry({
+        errors: ['Lambda.ServiceException', 'Lambda.AWSLambdaException', 'Lambda.SdkClientException'],
+        interval: cdk.Duration.seconds(2),  // Fixed: use 'interval' not 'intervalSeconds'
+        maxAttempts: 3,
+        backoffRate: 2.0
+      })
+      .addCatch(taskFailed, {               // Fixed: addCatch on the task, not the chain
+        errors: ['States.ALL']
+      })
+      .next(taskSucceeded);
 
+    // Create Step Functions state machine
     const stateMachine = new stepfunctions.StateMachine(this, 'WorkflowStateMachine', {
-      definitionBody: stepfunctions.DefinitionBody.fromChainable(definition),
+      definition,
       timeout: cdk.Duration.minutes(5)
     });
 
-    // Output important ARNs
+    // Output the state machine ARN
     new cdk.CfnOutput(this, 'StateMachineArn', {
       value: stateMachine.stateMachineArn,
       description: 'Step Functions State Machine ARN'
-    });
-
-    new cdk.CfnOutput(this, 'LambdaFunctionArn', {
-      value: workflowLambda.functionArn,
-      description: 'Lambda Function ARN'
     });
   }
 }
