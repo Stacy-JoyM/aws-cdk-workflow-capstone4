@@ -1,8 +1,17 @@
 *.js
-!jest.config.js
 *.d.ts
+!jest.config.js
 node_modules
-
-# CDK asset staging directory
-.cdk.staging
 cdk.out
+.env
+
+# CDK Context
+cdk.context.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

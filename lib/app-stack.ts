@@ -1,9 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
-import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
-import * as iam from 'aws-cdk-lib/aws-iam';
+import * as stepfunctionsTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export class AwsCdkWorkflowProjectStack extends cdk.Stack {
@@ -36,7 +35,8 @@ export class AwsCdkWorkflowProjectStack extends cdk.Stack {
       time: stepfunctions.WaitTime.duration(cdk.Duration.seconds(2))
     });
 
-    const lambdaTask = new tasks.LambdaInvoke(this, 'InvokeLambdaTask', {
+    // ✅ FIXED: Use stepfunctionsTasks instead of tasks
+    const lambdaTask = new stepfunctionsTasks.LambdaInvoke(this, 'InvokeLambdaTask', {
       lambdaFunction: workflowLambda,
       outputPath: '$.Payload'
     });
@@ -55,7 +55,7 @@ export class AwsCdkWorkflowProjectStack extends cdk.Stack {
     // 4. Define the workflow
     const definition = waitState.next(lambdaTask);
 
-    const stateMachine =  new stepfunctions.StateMachine(this, 'WorkflowStateMachine', {
+    const stateMachine = new stepfunctions.StateMachine(this, 'WorkflowStateMachine', {
       definitionBody: stepfunctions.DefinitionBody.fromChainable(definition),
       timeout: cdk.Duration.minutes(5)
     });
@@ -72,3 +72,4 @@ export class AwsCdkWorkflowProjectStack extends cdk.Stack {
     });
   }
 }
+
