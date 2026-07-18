@@ -49,14 +49,14 @@ function getAwsRegion(): string {
 const account = getAwsAccount();
 const region = getAwsRegion();
 
-console.log(`🚀 Deploying to account: ${account}, region: ${region}`);
+console.log(` Deploying to account: ${account}, region: ${region}`);
 
 // Validate required environment variables for pipeline
 const requiredEnvVars = ['GITHUB_REPO', 'GITHUB_CONNECTION_ARN'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
-  console.warn(`⚠️  Missing environment variables: ${missingVars.join(', ')}`);
+  console.warn(`  Missing environment variables: ${missingVars.join(', ')}`);
   console.warn('   Run: npm run setup-env');
 }
 

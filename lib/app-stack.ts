@@ -72,4 +72,3 @@ export class AwsCdkWorkflowProjectStack extends cdk.Stack {
     });
   }
 }
-

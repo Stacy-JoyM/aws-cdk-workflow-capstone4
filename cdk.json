@@ -1,5 +1,5 @@
 {
-  "app": "npx tsc && npx tsx bin/aws-cdk-workflow-project.ts",
+  "app": "node bin/aws-cdk-workflow-project.js",
   "watch": {
     "include": [
       "**"
@@ -61,7 +61,6 @@
     "@aws-cdk/aws-iam:minimizePolicies": true,
     "@aws-cdk/aws-iam:oidcRejectUnauthorizedConnections": true,
     "@aws-cdk/aws-kms:aliasNameRef": true,
-    "@aws-cdk/aws-kms:applyImportedAliasPermissionsToPrincipal": true,
     "@aws-cdk/aws-kms:reduceCrossAccountRegionPolicyScope": true,
     "@aws-cdk/aws-lambda-nodejs:sdkV3ExcludeSmithyPackages": true,
     "@aws-cdk/aws-lambda-nodejs:useLatestRuntimeVersion": true,
