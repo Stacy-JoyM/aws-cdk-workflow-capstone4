@@ -21,8 +21,14 @@ phases:
       - echo "Environment variables set:"
       - echo "  CDK_DEFAULT_ACCOUNT=$CDK_DEFAULT_ACCOUNT"
       - echo "  CDK_DEFAULT_REGION=$CDK_DEFAULT_REGION"
-      - echo "Ensuring CDK is bootstrapped..."
-      - npx cdk bootstrap aws://$CDK_DEFAULT_ACCOUNT/$CDK_DEFAULT_REGION
+      - echo "Checking if CDK is already bootstrapped..."
+      - |
+        if aws cloudformation describe-stacks --stack-name CDKToolkit --region $CDK_DEFAULT_REGION >/dev/null 2>&1; then
+          echo "CDK already bootstrapped"
+        else
+          echo "Bootstrapping CDK..."
+          npx cdk bootstrap aws://${CDK_DEFAULT_ACCOUNT}/${CDK_DEFAULT_REGION}
+        fi
 
   build:
     commands:
