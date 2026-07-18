@@ -55,8 +55,8 @@ export class AwsCdkWorkflowProjectStack extends cdk.Stack {
     // 4. Define the workflow
     const definition = waitState.next(lambdaTask);
 
-    const stateMachine = new stepfunctions.StateMachine(this, 'WorkflowStateMachine', {
-      definition,
+    const stateMachine =  new stepfunctions.StateMachine(this, 'WorkflowStateMachine', {
+      definitionBody: stepfunctions.DefinitionBody.fromChainable(definition),
       timeout: cdk.Duration.minutes(5)
     });
 

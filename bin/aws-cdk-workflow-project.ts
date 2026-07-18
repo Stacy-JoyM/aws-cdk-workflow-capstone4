@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { AwsCdkWorkflowProjectStack } from '../lib/app-stack';
 import { PipelineStack } from '../lib/pipeline-stack';
 
+
 const app = new cdk.App();
 
 // Deploy the pipeline stack (for CI/CD automation)
