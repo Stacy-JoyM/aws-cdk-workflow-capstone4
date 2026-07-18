@@ -25,8 +25,8 @@ phases:
     commands:
       - echo "Building the project..."
       - npm run build
-      - echo "Synthesizing CDK..."
-      - npx cdk synth --no-version-reporting --no-asset-metadata --quiet
+      - echo "Synthesizing CDK with environment variables..."
+      - CDK_DEFAULT_ACCOUNT=$CDK_DEFAULT_ACCOUNT CDK_DEFAULT_REGION=$CDK_DEFAULT_REGION GITHUB_REPO=$GITHUB_REPO GITHUB_CONNECTION_ARN=$GITHUB_CONNECTION_ARN npx cdk synth --no-version-reporting --no-asset-metadata --quiet
 
 artifacts:
   files:
