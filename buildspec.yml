@@ -21,17 +21,17 @@ phases:
       - echo "Environment variables set:"
       - echo "  CDK_DEFAULT_ACCOUNT=$CDK_DEFAULT_ACCOUNT"
       - echo "  CDK_DEFAULT_REGION=$CDK_DEFAULT_REGION"
-      - echo "Listing project structure..."
-      - ls -la
-      - echo "Checking lambda directory..."
-      - ls -la lambda/
+      - echo "Ensuring CDK is bootstrapped..."
+      - npx cdk bootstrap aws://$CDK_DEFAULT_ACCOUNT/$CDK_DEFAULT_REGION
 
   build:
     commands:
       - echo "Building the project..."
       - npm run build
-      - echo "Synthesizing CDK..."
-      - npx cdk synth --no-version-reporting --no-asset-metadata --quiet
+      - echo "Synthesizing CDK with asset upload..."
+      - npx cdk synth --all
+      - echo "Deploying with CDK (this will upload assets)..."
+      - npx cdk deploy AwsCdkWorkflowProjectStack --require-approval never --verbose
 
 artifacts:
   files:
