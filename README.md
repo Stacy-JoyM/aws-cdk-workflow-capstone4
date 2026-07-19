@@ -1,4 +1,4 @@
-# Welcome to your CDK TypeScript project
+# Capstone 4 Project
 ## Deliverables : A complete AWS cloud serverless using CDK 
 
 ### What Was Accomplished 
