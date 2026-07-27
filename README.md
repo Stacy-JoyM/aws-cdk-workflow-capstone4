@@ -56,7 +56,10 @@ lib/pipeline-stack.ts (CI/CD pipeline)
 
 #### Cloudwatch Logs 
 ![cloudwatch_logs](images/75B48BFD-C2DA-4BD0-B9EC-B73A3D20DC4B_1_105_c.jpeg)
-
+/aws/lambda/AwsCdkWorkflowProjectStack-WorkflowTask865FF66C-0mkCOCM1tmup Log group was auto created by Lambda when your CDK-deployed function was first invoked. 
+![alt text](images/C3F9BCBF-739B-48E8-A610-B98347442192.jpeg)
+![alt text](8822FB60-243B-4B27-A19A-CAB9E93EEC2D.jpeg)
+![alt text](7045D8C3-B5B3-456F-A429-0FF1B9F2F166.jpeg)
 
 ### 6 . CDK Synthesis Output 
 CDK Synthesis is the process of converting your TypeScript Infrastructure as Code into AWS CloudFormation templates that can be deployed to AWS.
